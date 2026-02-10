@@ -99,4 +99,4 @@ if __name__ == "__main__":
         print("Do you have any other scheduling that you wish to add?")
         print("Do you wish to know how much water your body needs to maintain a healthy lifestyle?")
         print("-" * 40 + "\n")
-  
+        
