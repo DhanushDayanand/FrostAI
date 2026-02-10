@@ -1,0 +1,18 @@
+{
+    "task": "hydration",
+    "active_window": {
+        "start": "09:00",
+        "end": "17:00"
+    },
+    "exclusions": [
+        {
+            "label": "lunch",
+            "start": "13:00",
+            "end": "14:00"
+        },
+        {
+            "label": "break",
+            "time": "16:00"
+        }
+    ]
+}
