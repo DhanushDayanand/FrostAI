@@ -4,45 +4,27 @@ from pydantic import BaseModel
 import requests
 import json
 
-
-app = FastAPI(title="Internal LLM Parser API")
+app = FastAPI(title="Internal LLM Service")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten later
+    allow_origins=["*"],  # restrict later
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# Ollama configuration
-
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "llama3"
-
-
-# Request & Response Models
 
 class ParseRequest(BaseModel):
     text: str
 
-
-class ParseResponse(BaseModel):
-    task: str
-    active_window: dict | None
-    exclusions: list
-
-
-
-# System prompt (CRITICAL)
-
 SYSTEM_PROMPT = """
-You are an information extraction engine.
+You are an internal scheduling parser.
 
 Return ONLY valid JSON.
-No explanations.
+No explanation.
 No markdown.
-No extra text.
 
 Schema:
 {
@@ -65,31 +47,23 @@ Schema:
 }
 
 Rules:
-- Use 24-hour format
-- If something is missing, use null
-- Do NOT invent times
+- 24-hour format
+- Do not guess times
+- Missing values → null
 """
 
-#API Endpoint
-@app.post("/parse", response_model=ParseResponse)
-def parse_schedule(req: ParseRequest):
+@app.post("/parse")
+def parse(req: ParseRequest):
     payload = {
         "model": MODEL,
-        "prompt": f"{SYSTEM_PROMPT}\n\nUser input: {req.text}",
+        "prompt": SYSTEM_PROMPT + "\nUser input: " + req.text,
         "stream": False
     }
 
     try:
         r = requests.post(OLLAMA_URL, json=payload, timeout=60)
         r.raise_for_status()
-    except requests.RequestException:
-        raise HTTPException(status_code=503, detail="LLM service unavailable")
-
-    # Ollama returns  JSON
-    try:
         output = r.json()["response"]
-        parsed = json.loads(output)
+        return json.loads(output)
     except Exception:
-        raise HTTPException(status_code=500, detail="Invalid LLM response")
-
-    return parsed
+        raise HTTPException(status_code=500, detail="LLM parsing failed")
