@@ -1,22 +1,52 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
+from datetime import datetime
 
-
-genai.configure(api_key="AIzaSyCiFa8iwM-ec0DQEJA3nzeH8HkOC9jWnJA")
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Initialize the Gemini Client
+client = genai.Client(api_key="AIzaSyCPDVWxWP13j5GWrPDvP29M7JPgsJSpOMc")
 
 def parse_with_gemini(user_text):
     prompt = f"""
-    Extract hydration schedule details from this text: "{user_text}"
+    Extract the hydration schedule from this text. 
     Return ONLY a JSON object with this structure:
     {{
+        "task": "hydration",
         "active_window": {{"start": "HH:MM", "end": "HH:MM"}},
-        "exclusions": [{{ "label": "string", "start": "HH:MM", "end": "HH:MM", "time": "HH:MM" }}]
+        "exclusions": [
+            {{"label": "lunch", "start": "HH:MM", "end": "HH:MM"}},
+            {{"label": "break", "time": "HH:MM"}}
+        ]
     }}
-    If a field is unknown, use null. Use 24-hour format.
+    Use 24-hour format. User text: "{user_text}"
     """
     
-    response = model.generate_content(prompt)
-    # Strip any markdown formatting (like ```json) if present
-    clean_json = response.text.strip().replace('```json', '').replace('```', '')
-    return json.loads(clean_json)
+    # We use Flash because it's fast and cheap for data parsing
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    return json.loads(response.text)
+
+def save_to_json(data):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"gemini_schedule_{timestamp}.json"
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=4)
+    print(f"\n[SUCCESS] Saved to {filename}")
+
+if __name__ == "__main__":
+    print("--- Gemini Hydration Scheduler ---")
+    while True:
+        user_input = input("\nEnter schedule: ")
+        if user_input.lower() in ['q', 'quit']: break
+        
+        try:
+            parsed_data = parse_with_gemini(user_input)
+            print(json.dumps(parsed_data, indent=4))
+            save_to_json(parsed_data)
+        except Exception as e:
+            print(f"Error: {e}")

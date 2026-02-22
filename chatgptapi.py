@@ -1,32 +1,22 @@
-import os
 import json
 from datetime import datetime
 from openai import OpenAI
 
+client = OpenAI()
 
 
-MODEL_NAME = "gpt-4o-mini"
-TEMPERATURE = 0
+SYSTEM_PROMPT = """
+You are a scheduling assistant.
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+Extract hydration scheduling information from user input.
 
+Rules:
+- Always return VALID JSON
+- Use 24-hour time format (HH:MM)
+- If a field is missing, use null
+- Follow this schema exactly
 
-
-def parse_input_with_chatgpt(user_text):
-    """
-    Sends user input to ChatGPT and expects structured JSON output
-    for hydration scheduling.
-    """
-
-    system_prompt = """
-You are a scheduling parser.
-
-Extract hydration schedule information from the user's message.
-
-Return ONLY valid JSON in the following exact structure:
-
+Schema:
 {
   "task": "hydration",
   "active_window": {
@@ -35,46 +25,31 @@ Return ONLY valid JSON in the following exact structure:
   },
   "exclusions": [
     {
-      "label": "lunch",
+      "label": "string",
       "start": "HH:MM",
       "end": "HH:MM"
     },
     {
-      "label": "break",
+      "label": "string",
       "time": "HH:MM"
     }
   ]
 }
-
-Rules:
-- Use 24-hour time format
-- If a field is unknown, use null
-- Do not add explanations or extra keys
-- Output JSON only
 """
 
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            temperature=TEMPERATURE,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text}
-            ]
-        )
 
-        raw_output = response.choices[0].message.content
-        return json.loads(raw_output)
+def parse_with_chatgpt(user_text):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_text}
+        ],
+        temperature=0
+    )
 
-    except json.JSONDecodeError:
-        print("[ERROR] ChatGPT returned invalid JSON.")
-        return None
-
-    except Exception as e:
-        print(f"[ERROR] ChatGPT API failed: {e}")
-        return None
-
-
+    content = response.choices[0].message.content
+    return json.loads(content)
 
 
 def save_to_json(data):
@@ -87,42 +62,31 @@ def save_to_json(data):
     print(f"\n[SUCCESS] Data saved to {filename}")
 
 
-
-
 if __name__ == "__main__":
-
-    print("\n--- Hydration Scheduler (ChatGPT Powered) ---")
-    print("Instructions:")
-    print("• Enter your working hours")
-    print("• Mention lunch or breaks naturally")
-    print("• Example:")
-    print("  'Working 9am to 5pm, lunch 1 to 2, coffee at 4'")
-    print("Type 'exit' or 'quit' to stop.")
-    print("-" * 50)
+    print("--- Hydration Scheduler (ChatGPT Powered) ---")
+    print("Example:")
+    print("working 9am to 5pm, lunch 12:30pm to 1:30pm, coffee at 4pm")
+    print("Type 'exit' to quit\n")
 
     while True:
-        user_input = input("\nUser Schedule: ").strip()
+        user_input = input("User Schedule: ").strip()
 
-        if user_input.lower() in ["exit", "quit", "q", "stop"]:
-            print("Exiting program. Stay hydrated! 💧")
+        if user_input.lower() in ["exit", "quit", "q"]:
+            print("Exiting. Stay hydrated 💧")
             break
 
         if not user_input:
             continue
 
-        parsed_data = parse_input_with_chatgpt(user_input)
+        try:
+            parsed_data = parse_with_chatgpt(user_input)
 
-        if not parsed_data:
-            print("[WARNING] Could not parse schedule. Try again.")
-            continue
+            print("\nParsed JSON Output:")
+            print(json.dumps(parsed_data, indent=4))
 
-        print("\nParsed JSON Output:")
-        print(json.dumps(parsed_data, indent=4))
+            save_to_json(parsed_data)
 
-        save_to_json(parsed_data)
+        except Exception as e:
+            print("❌ Error parsing input:", e)
 
-        print("\nFollow-up questions:")
-        print("• How frequently should I remind you to hydrate?")
-        print("• Do you have any other schedule constraints?")
-        print("• Would you like water intake recommendations?")
-        print("-" * 50)
+        print("-" * 40)
