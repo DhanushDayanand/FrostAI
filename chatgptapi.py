@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 from openai import OpenAI
 
-client = OpenAI()
-
+# Initialize client
+client = OpenAI(api_key="YOUR_API_KEY_HERE")
 
 SYSTEM_PROMPT = """
 You are a scheduling assistant.
@@ -39,16 +39,23 @@ Schema:
 
 
 def parse_with_chatgpt(user_text):
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_text}
+    response = client.responses.create(
+        model="gpt-5-nano",
+        input=[
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": user_text
+            }
         ],
         temperature=0
     )
 
-    content = response.choices[0].message.content
+    # Extract text output safely
+    content = response.output_text
     return json.loads(content)
 
 

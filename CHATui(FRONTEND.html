@@ -22,7 +22,7 @@
 <script>
 async function send() {
   const text = document.getElementById("input").value;
-  const res = await fetch("http://SERVER_IP:8000/parse", {
+  const res = await fetch("http://192.168.56.1:8000/parse", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({text})
